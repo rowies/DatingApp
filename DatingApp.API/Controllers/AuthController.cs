@@ -25,61 +25,60 @@ namespace DatingApp.API.Controllers
             _repo = repo;
     }
 
-    [HttpPost("register")]
-    public async Task<IActionResult> Register(UserForRegisterDto userForRegisterDto)
-    {
-
-        userForRegisterDto.Username = userForRegisterDto.Username.ToLower();
-
-        if (await _repo.UserExists(userForRegisterDto.Username))
+        [HttpPost("register")]
+        public async Task<IActionResult> Register(UserForRegisterDto userForRegisterDto)
         {
-            return BadRequest("Username already exists");
-        }
 
-        var userToCreate = new User
-        {
-            Username = userForRegisterDto.Username
-        };
+            userForRegisterDto.Username = userForRegisterDto.Username.ToLower();
 
-        var createdUser = await _repo.Register(userToCreate, userForRegisterDto.Password);
+            if (await _repo.UserExists(userForRegisterDto.Username))
+            {
+                return BadRequest("Username already exists");
+            }
 
-        return StatusCode(201);
-    }
-
-
-    [HttpPost("login")]
-    public async Task<IActionResult> Login(UserForLoginDto userForLoginDto)
-    {
-        var userFromRepo = await _repo.Login(userForLoginDto.Username.ToLower(), userForLoginDto.Password);
-
-        if (userFromRepo == null)
-            return Unauthorized();
-
-        var claims = new[]{
-                new Claim(ClaimTypes.NameIdentifier, userFromRepo.Id.ToString() ),
-                new Claim(ClaimTypes.Name, userFromRepo.Username)
+            var userToCreate = new User
+            {
+                Username = userForRegisterDto.Username
             };
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8
-            .GetBytes(_config.GetSection("AppSettings:Token").Value ));
+            var createdUser = await _repo.Register(userToCreate, userForRegisterDto.Password);
 
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
+            return StatusCode(201);
+        }
 
-        var tokenDescriptor = new SecurityTokenDescriptor{
-            Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.Now.AddDays(1),
-            SigningCredentials = creds
-        };
 
-        var tokenHandler = new JwtSecurityTokenHandler();
+        [HttpPost("login")]
+        public async Task<IActionResult> Login(UserForLoginDto userForLoginDto)
+        {
+            var userFromRepo = await _repo.Login(userForLoginDto.Username.ToLower(), userForLoginDto.Password);
 
-        var token = tokenHandler.CreateToken(tokenDescriptor);
+            if (userFromRepo == null)
+                return Unauthorized();
 
-        return Ok(new {
-            token = tokenHandler.WriteToken(token)
-        });
+            var claims = new[]{
+                    new Claim(ClaimTypes.NameIdentifier, userFromRepo.Id.ToString() ),
+                    new Claim(ClaimTypes.Name, userFromRepo.Username)
+                };
 
+            var key = new SymmetricSecurityKey(Encoding.UTF8
+                .GetBytes(_config.GetSection("AppSettings:Token").Value ));
+
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
+
+            var tokenDescriptor = new SecurityTokenDescriptor{
+                Subject = new ClaimsIdentity(claims),
+                Expires = DateTime.Now.AddDays(1),
+                SigningCredentials = creds
+            };
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+
+            return Ok(new {
+                token = tokenHandler.WriteToken(token)
+            });
 
         }
-}
+    }
 }
